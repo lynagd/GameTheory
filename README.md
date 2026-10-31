@@ -9,10 +9,6 @@ A Python program that takes a finite game in normal form (any number of players,
 | `dominance.py` | the program |
 | `power_game_3players.json` | our own 3-player game (described in section 5) |
 | `README.md` | this document |
-<<<<<<< HEAD
-=======
-| `game theory TP.pdf` | this TP pdf file |
->>>>>>> 3c1b982db04d5a4099a7595adf2553dca6cc436b
 
 ## 2. How to run
 
@@ -20,19 +16,13 @@ Requirements: Python 3 and `numpy` (`pip install numpy`).
 
 ```bash
 python dominance.py                                              # interactive menu
-python dominance.py --test                                       # tests on examples 1 to 5 from this TP pdf
+python dominance.py --test                                       # tests on examples 1 to 5 from TP1 pdf
 python dominance.py --file power_game_3players.json --mode strict   # our game, strict dominance
 python dominance.py --file power_game_3players.json --mode weak     # weak dominance
-<<<<<<< HEAD
 python dominance.py --file power_game_3players.json --mode weak --random --seed 5   # weak, random elimination order
 ```
 
 The interactive menu offers four sources for the game: **keyboard**, **JSON file**, **random generation**, or a **lab sheet example** (1 to 5). The user then chooses the mode (strict or weak) and, in weak mode, the elimination order (**default** or **random**).
-=======
-```
-
-The interactive menu offers four sources for the game: **keyboard**, **JSON file**, **random generation**, or a **pdf file** (1 to 5). The user then chooses the mode (strict or weak) and, in weak mode, the order of the players.
->>>>>>> 3c1b982db04d5a4099a7595adf2553dca6cc436b
 
 ## 3. How the code works
 
@@ -46,7 +36,7 @@ game[s1, s2, ..., sn, i] = payoff of player i when player 1 plays s1, player 2 p
 
 - The first n axes are the strategies of each player (their sizes kᵢ can differ).
 - The last axis holds the payoff vector.
-- So the number of players is `game.ndim - 1` (function `num_players`).
+- So the number of players is `game.ndim - 1` (function `num_players`). No special case is needed for 2, 3 or n players.
 
 Strategy names are stored in `names[i][j]` (strategy j of player i).
 
@@ -67,16 +57,13 @@ Strategy names are stored in `names[i][j]` (strategy j of player i).
 3. The loop stops when nothing more can be removed.
 4. The final result says whether **a single profile** remains (game solved) or not.
 
-<<<<<<< HEAD
 With strict dominance, the order of elimination does not matter. With weak dominance it can change the result, which is why the program **prints the order followed** and offers a **random** order (`--random`) as an alternative to the default one. The seed is printed, so a run can be repeated with `--seed`.
-=======
-With strict dominance, the order of elimination does not matter. With weak dominance it can change the result, which is why the program **prints the order followed** .
->>>>>>> 3c1b982db04d5a4099a7595adf2553dca6cc436b
 
 ### 3.4 Display (`print_game`, `print_table`)
 
 - **2 players**: one matrix (player 1 in rows, player 2 in columns), each cell holds the payoff vector.
 - **3 players or more**: one matrix for each combination of strategies of players 3 to n, labelled for example `[P3 = Medium]`.
+- Only the strategies still active are shown, so the game visibly shrinks at each step.
 
 ### 3.5 Game input (R1)
 
@@ -93,11 +80,27 @@ With strict dominance, the order of elimination does not matter. With weak domin
 }
 ```
 
-## 4. Our own game: three transmitters choosing their power
+## 4. Results on the lab sheet test games
 
-### 4.1 Description
+Command: `python dominance.py --test`
 
-Three wireless transmitters share the same area. Each one chooses, **simultaneously**, its transmission power: **Low**, **Medium** or **High**. The payoff of each transmitter represents its useful throughput (arbitrary units). The values are invented. The game has 3 × 3 × 3 = 27 profiles and is stored in `power_game_3players.json`.
+| Game | Mode | Result obtained | Expected |
+|---|---|---|---|
+| Example 1 | strict | (H, C), payoffs (2, 3) | OK |
+| Example 2 (Rock-Paper-Scissors) | strict and weak | no elimination, 3×3 unchanged | OK |
+| Example 3 | strict | D removed, {H, B} × {G, M} remains | OK |
+| Example 3 | weak, player 1 first | H × {G, M} | OK |
+| Example 3 | weak, player 2 first | {H, B} × G | OK |
+| Example 4 (3 players) | strict | (N, N, N), payoffs (0, 0, 0) | OK |
+| Example 5 | strict and weak | (A3, B3), payoffs (5, 3) | OK |
+
+## 5. Our own game: three transmitters choosing their power
+
+### 5.1 Description
+
+Three wireless transmitters share the same area. Each one chooses, **simultaneously**, its transmission power: **Low**, **Medium** or **High**. The payoff of each transmitter represents its useful throughput (arbitrary units). The values are invented: they were chosen so that the chain of eliminations involves **all three players**. The game has 3 × 3 × 3 = 27 profiles and is stored in `power_game_3players.json`.
+
+Notation: each cell contains (payoff P1, payoff P2, payoff P3). Player 1 plays in rows, player 2 in columns, and there is one matrix per strategy of player 3.
 
 **Initial game**
 
@@ -125,7 +128,9 @@ P3 = High
 | **Medium** | (6, 4, 5) | (7, 1, 0) | (3, 1, 9) |
 | **High** | (7, 3, 3) | (7, 0, 5) | (5, 1, 6) |
 
-### 4.2 The 6 steps (strict dominance)
+**Starting point:** only one strategy is dominated at the start (Low for player 3). The other eliminations become possible only as strategies disappear, which is what makes this game more interesting than a 2-player game.
+
+### 5.2 The 6 steps (strict dominance)
 
 At each step we compare the payoffs of the player concerned for the removed strategy and for the dominating strategy, **against all remaining combinations of the two other players**.
 
@@ -202,7 +207,7 @@ The two other players are now fixed (P1 = High, P3 = Medium): Low gives 6 to P2,
 |---|---|
 | **High** | (9, 9, 7) |
 
-### 4.3 Result
+### 5.3 Result
 
 A **single profile** remains: **(High, Medium, Medium)**, with payoffs **(9, 9, 7)**. The game is therefore solved by iterated elimination of strictly dominated strategies. The order of removals is P3, P1, P2, P3, P1, P2: each player removes two strategies, and each removal depends on the previous ones.
 
@@ -213,7 +218,6 @@ To reproduce the full trace:
 ```bash
 python dominance.py --file power_game_3players.json --mode strict
 ```
-<<<<<<< HEAD
 
 ## 6. What works and limitations
 
@@ -223,5 +227,3 @@ python dominance.py --file power_game_3players.json --mode strict
 - Only pure strategies are handled (no dominance by a mixed strategy).
 - In weak mode the program follows **one order** at a time (default or random) and does not enumerate all possible orders.
 - The JSON file is not validated (shape of the array, number of names).
-=======
->>>>>>> 3c1b982db04d5a4099a7595adf2553dca6cc436b
