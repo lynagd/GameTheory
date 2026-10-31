@@ -1,26 +1,10 @@
-"""
-Game theory lab: iterated elimination of dominated strategies (strict / weak).
-
-How a game is stored:
-    game[s1, s2, ..., sn, i] = payoff of player i (0-indexed) for the profile (s1, ..., sn)
-    names[i][j]              = name of strategy j of player i
-    active[i]                = indices of the strategies still in the game for player i
-
-Nothing is ever deleted from the numpy array: we only remove indices from `active`.
-
-Usage:  python dominance.py                                      (interactive menu)
-        python dominance.py --test                               (tests on examples 1 to 5)
-        python dominance.py --file game.json --mode strict       (game loaded from a file)
-"""
 import sys
 import json
+import random
 import itertools
 import numpy as np
 
-
-# ----------------------------------------------------------------------------
-# 1. Basic tools
-# ----------------------------------------------------------------------------
+#some utility functions
 def num_players(game):
     return game.ndim - 1
 
@@ -34,13 +18,9 @@ def default_names(ks):
 def fmt(x):
     return str(int(x)) if float(x).is_integer() else f"{x:g}"
 
-
-# ----------------------------------------------------------------------------
-# 2. Display (R2)
-# ----------------------------------------------------------------------------
+#display functions
 def print_table(game, names, active, fixed):
-    """Print one matrix: player 1 in rows, player 2 in columns.
-    `fixed` = indices (in game) of the strategies of players 3..n."""
+#player 1 = rows, player 2 = columns, other players(3..n) = fixed
     rows, cols = active[0], active[1]
     header = ["1\\2"] + [names[1][c] for c in cols]
     body = []
@@ -73,17 +53,15 @@ def print_game(game, names, active):
         print()
 
 
-# ----------------------------------------------------------------------------
-# 3. Dominance (R3, R4)
-# ----------------------------------------------------------------------------
+#dominance functions
 def payoffs_of(game, active, i, s):
-    """Payoffs of player i when playing s, against every active combination of the others."""
+# Return the payoffs of player i when playing strategy s, given the active strategies of all players.
     idx = [[s] if p == i else active[p] for p in range(num_players(game))]
     return game[np.ix_(*idx)][..., i].ravel()
 
 
 def dominates(game, active, i, b, a, mode):
-    """True if strategy b dominates strategy a for player i."""
+# Return True if strategy b dominates strategy a for player i, given the active strategies of all players.
     ub = payoffs_of(game, active, i, b)
     ua = payoffs_of(game, active, i, a)
     if mode == "strict":
@@ -91,29 +69,31 @@ def dominates(game, active, i, b, a, mode):
     return bool(np.all(ub >= ua) and np.any(ub > ua))   # weak
 
 
-def find_dominated(game, active, mode, player_order):
-    """First dominated strategy found: (player, dominated, dominating) or None."""
+def find_dominated(game, active, mode, player_order, rng=None):
+# Return a tuple (i, a, b) if strategy a of player i is dominated by strategy b, or None if no dominated strategy is found.
+# Without rng: the first one found, following player_order. With rng: one chosen at random among all dominated strategies.
+    candidates = []
     for i in player_order:
         if len(active[i]) <= 1:
             continue
         for a in active[i]:
             for b in active[i]:
                 if a != b and dominates(game, active, i, b, a, mode):
-                    return i, a, b
-    return None
+                    if rng is None:
+                        return i, a, b
+                    candidates.append((i, a, b))
+                    break
+    return rng.choice(candidates) if candidates else None
 
-
-# ----------------------------------------------------------------------------
-# 4. Iterated elimination with trace (R5, R6)
-# ----------------------------------------------------------------------------
-def iterated_elimination(game, names, mode="strict", player_order=None, verbose=True):
+#iterated elimination of dominated strategies
+def iterated_elimination(game, names, mode="strict", player_order=None, verbose=True, rng=None):
     n = num_players(game)
     if player_order is None:
         player_order = list(range(n))
     active = [list(range(game.shape[i])) for i in range(n)]
     step = 0
     while True:
-        found = find_dominated(game, active, mode, player_order)
+        found = find_dominated(game, active, mode, player_order, rng)
         if found is None:
             break
         i, a, b = found
@@ -142,10 +122,7 @@ def iterated_elimination(game, names, mode="strict", player_order=None, verbose=
                   f"solved by this method.")
     return active
 
-
-# ----------------------------------------------------------------------------
-# 5. Game input (R1)
-# ----------------------------------------------------------------------------
+#Game input functions
 def read_int(msg, lo=1):
     while True:
         try:
@@ -182,7 +159,7 @@ def input_keyboard():
 
 
 def load_json(path):
-    """JSON file: {"names": [[...], [...]], "payoffs": nested array of shape (k1,...,kn,n)}"""
+# Load a game from a JSON file. The file must contain a "payoffs" field (a list of lists of lists...) and may contain a "names" field (a list of lists of strings).
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     game = np.array(data["payoffs"], dtype=float)
@@ -203,10 +180,7 @@ def input_random():
     game = rng.integers(lo, hi + 1, size=tuple(ks) + (n,)).astype(float)
     return game, default_names(ks)
 
-
-# ----------------------------------------------------------------------------
-# 6. Test games (examples 1 to 5 of the lab sheet)
-# ----------------------------------------------------------------------------
+#Test examples from TP pdfS
 def example1():
     g = np.array([[(3, 1), (2, 3), (0, 0)],
                   [(1, 2), (1, 2), (5, 1)],
@@ -265,18 +239,15 @@ def run_tests():
     g, n = example5(); check("Ex5 weak", iterated_elimination(g, n, "weak", **quiet), [[2], [2]])
     print("\nAll tests passed.")
 
-
-# ----------------------------------------------------------------------------
-# 7. Main program
-# ----------------------------------------------------------------------------
+#Main function
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Iterated elimination of dominated strategies")
     parser.add_argument("--test", action="store_true", help="run the tests on examples 1 to 5")
     parser.add_argument("--file", help="load a game from a JSON file")
     parser.add_argument("--mode", choices=["strict", "weak"], help="strict or weak dominance")
-    parser.add_argument("--reverse", action="store_true",
-                        help="weak mode: process the players in reverse order")
+    parser.add_argument("--random", action="store_true", help="weak mode: random elimination order")
+    parser.add_argument("--seed", type=int, help="seed for --random (to repeat a run)")
     args = parser.parse_args()
 
     if args.test:
@@ -287,7 +258,7 @@ def main():
     if args.file:
         game, names = load_json(args.file)
     else:
-        print("Game source: 1) keyboard  2) JSON file  3) random  4) lab sheet example")
+        print("Game source: 1) keyboard  2) JSON file  3) random  4) pdf examples")
         choice = read_int("Your choice: ", 1)
         if choice == 1:
             game, names = input_keyboard()
@@ -305,17 +276,22 @@ def main():
         mode = "weak" if input("Mode: 1) strict dominance  2) weak dominance: ").strip() == "2" else "strict"
 
     order = list(range(num_players(game)))
+    rng = None
     if mode == "weak":
-        reverse = args.reverse or (not args.mode and
-                                   input("Player order: 1) normal  2) reversed: ").strip() == "2")
-        if reverse:
-            order.reverse()
-        print(f"(Order followed: players {[i + 1 for i in order]})")
+        use_random = args.random
+        if not args.mode:
+            use_random = input("Elimination order: 1) default  2) random: ").strip() == "2"
+        if use_random:
+            seed = args.seed if args.seed is not None else random.randrange(10 ** 6)
+            rng = random.Random(seed)
+            print(f"(Order followed: random choice among the dominated strategies, seed = {seed})")
+        else:
+            print(f"(Order followed: players {[i + 1 for i in order]})")
 
     print("\n=== Initial game ===")
     print_game(game, names, [list(range(k)) for k in game.shape[:-1]])
     print()
-    iterated_elimination(game, names, mode, order)
+    iterated_elimination(game, names, mode, order, rng=rng)
 
 
 if __name__ == "__main__":

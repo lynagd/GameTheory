@@ -9,7 +9,6 @@ A Python program that takes a finite game in normal form (any number of players,
 | `dominance.py` | the program |
 | `power_game_3players.json` | our own 3-player game (described in section 5) |
 | `README.md` | this document |
-| `` | this document |
 
 ## 2. How to run
 
@@ -20,10 +19,10 @@ python dominance.py                                              # interactive m
 python dominance.py --test                                       # tests on examples 1 to 5 from TP1 pdf
 python dominance.py --file power_game_3players.json --mode strict   # our game, strict dominance
 python dominance.py --file power_game_3players.json --mode weak     # weak dominance
-python dominance.py --file power_game_3players.json --mode weak --reverse   # weak, players processed in order 3, 2, 1
+python dominance.py --file power_game_3players.json --mode weak --random --seed 5   # weak, random elimination order
 ```
 
-The interactive menu offers four sources for the game: **keyboard**, **JSON file**, **random generation**, or a **lab sheet example** (1 to 5). The user then chooses the mode (strict or weak) and, in weak mode, the order of the players.
+The interactive menu offers four sources for the game: **keyboard**, **JSON file**, **random generation**, or a **lab sheet example** (1 to 5). The user then chooses the mode (strict or weak) and, in weak mode, the elimination order (**default** or **random**).
 
 ## 3. How the code works
 
@@ -58,7 +57,7 @@ Strategy names are stored in `names[i][j]` (strategy j of player i).
 3. The loop stops when nothing more can be removed.
 4. The final result says whether **a single profile** remains (game solved) or not.
 
-With strict dominance, the order of elimination does not matter. With weak dominance it can change the result, which is why the program **prints the order followed** and lets the user reverse it.
+With strict dominance, the order of elimination does not matter. With weak dominance it can change the result, which is why the program **prints the order followed** and offers a **random** order (`--random`) as an alternative to the default one. The seed is printed, so a run can be repeated with `--seed`.
 
 ### 3.4 Display (`print_game`, `print_table`)
 
@@ -212,7 +211,7 @@ The two other players are now fixed (P1 = High, P3 = Medium): Low gives 6 to P2,
 
 A **single profile** remains: **(High, Medium, Medium)**, with payoffs **(9, 9, 7)**. The game is therefore solved by iterated elimination of strictly dominated strategies. The order of removals is P3, P1, P2, P3, P1, P2: each player removes two strategies, and each removal depends on the previous ones.
 
-**Weak dominance:** the program finds the same final profile **(High, Medium, Medium)** with both player orders (1, 2, 3 and then 3, 2, 1), but the sequence of removals is not the same in the two cases. Since all the dominances in this game are strict, they are also weak dominances, so the result is identical.
+**Weak dominance:** the program finds the same final profile **(High, Medium, Medium)** with the default order and with a random order (for example `--seed 5`), but the sequence of removals is not the same in the two cases. Since all the dominances in this game are strict, they are also weak dominances, so the result is identical.
 
 To reproduce the full trace:
 
@@ -226,5 +225,5 @@ python dominance.py --file power_game_3players.json --mode strict
 
 **Limitations:**
 - Only pure strategies are handled (no dominance by a mixed strategy).
-- In weak mode the program follows **one order** at a time (the one chosen by the user) and does not enumerate all possible orders.
+- In weak mode the program follows **one order** at a time (default or random) and does not enumerate all possible orders.
 - The JSON file is not validated (shape of the array, number of names).
