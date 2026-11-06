@@ -12,49 +12,53 @@ The program:
     3. intersects them to get the pure Nash equilibria
     4. checks whether each equilibrium is Pareto-optimal
 
-Usage:  python Nash.py                           (interactive menu)
-        python Nash.py --test                    (tests on the example games)
-        python Nash.py --example 1               (one of the built-in games)
-        python Nash.py --file game.json          (game loaded from a JSON file)
-        python Nash.py --list                    (list the built-in games)
+Usage:  python nash.py                           (interactive menu)
+        python nash.py --test                    (tests on the example games)
+        python nash.py --example 1               (one of the built-in games)
+        python nash.py --file game.json          (game loaded from a JSON file)
+        python nash.py --list                    (list the built-in games)
 """
 import sys
 import json
 import argparse
 import numpy as np
 
-#tools
-#return default names for m rows and n columns
+
+# ----------------------------------------------------------------------------
+# 1. Basic tools
+# ----------------------------------------------------------------------------
 def default_names(m, n):
     return [f"A{i + 1}" for i in range(m)], [f"B{j + 1}" for j in range(n)]
 
-#return a string representation of a number, without decimal point if it is an integer
+
 def fmt(x):
     return str(int(x)) if float(x).is_integer() else f"{x:g}"
 
-#return a string representation of a payoff pair (A[i, j], B[i, j])
+
 def pair(A, B, i, j):
     return f"({fmt(A[i, j])}, {fmt(B[i, j])})"
 
-#return a string representation of a profile (i, j) using the row and column names
+
 def profile_name(rn, cn, i, j):
     return f"({rn[i]}, {cn[j]})"
 
-#return a string representation of a set of profiles (i, j) using the row and column names
+
 def profiles_str(profiles, rn, cn):
-    #{(A1, B1), (A2, B4)} for a set of (i, j) profiles
+    """{(A1, B1), (A2, B4)} for a set of (i, j) profiles."""
     return "{" + ", ".join(profile_name(rn, cn, i, j) for i, j in sorted(profiles)) + "}"
 
 
-#display a matrix with a corner label, row names, column names, and cell contents
+# ----------------------------------------------------------------------------
+# 2. Display (R2)
+# ----------------------------------------------------------------------------
 def print_matrix(corner, rn, cn, cells):
-    #cells[i][j] = text of the cell
+    """cells[i][j] = text of the cell. Prints an aligned table."""
     table = [[corner] + list(cn)] + [[rn[i]] + list(cells[i]) for i in range(len(rn))]
     widths = [max(len(row[k]) for row in table) for k in range(len(table[0]))]
     for row in table:
         print("  " + "  ".join(c.ljust(widths[k]) for k, c in enumerate(row)))
 
-#display the game: payoff pairs, matrix A, matrix B
+
 def show_game(A, B, rn, cn):
     m, n = A.shape
     print("Payoff pairs (u1, u2): player 1 = rows, player 2 = columns")
@@ -65,19 +69,21 @@ def show_game(A, B, rn, cn):
     print_matrix("B", rn, cn, [[fmt(B[i, j]) for j in range(n)] for i in range(m)])
 
 
-#best responses of each player (ties included)
+# ----------------------------------------------------------------------------
+# 3. Best responses (R3) and Nash equilibria (R4)
+# ----------------------------------------------------------------------------
 def best_responses_1(A):
-    #R1[j] = list of rows i maximizing A[i, j]
+    """R1[j] = list of rows i maximizing A[i, j] (all of them, ties included)."""
     return [list(np.flatnonzero(np.isclose(A[:, j], A[:, j].max()))) for j in range(A.shape[1])]
 
 
 def best_responses_2(B):
-    #R2[i] = list of columns j maximizing B[i, j]
+    """R2[i] = list of columns j maximizing B[i, j] (all of them, ties included)."""
     return [list(np.flatnonzero(np.isclose(B[i, :], B[i, :].max()))) for i in range(B.shape[0])]
 
 
 def best_response_profiles(A, B):
-    #BR1 and BR2 as sets of profiles (i, j)
+    """BR1 and BR2 as sets of profiles (i, j)."""
     br1 = {(i, j) for j, rows in enumerate(best_responses_1(A)) for i in rows}
     br2 = {(i, j) for i, cols in enumerate(best_responses_2(B)) for j in cols}
     return br1, br2
@@ -88,21 +94,25 @@ def nash_equilibria(A, B):
     return sorted(br1 & br2)
 
 
-#pareto analysis
+# ----------------------------------------------------------------------------
+# 4. Pareto analysis (R6)
+# ----------------------------------------------------------------------------
 def pareto_dominates(u, v):
-    #True if payoff vector u Pareto-dominates v: >= for both players, > for at least one
+    """True if payoff vector u Pareto-dominates v: >= for both players, > for at least one."""
     return bool(u[0] >= v[0] and u[1] >= v[1] and (u[0] > v[0] or u[1] > v[1]))
 
 
 def pareto_dominators(A, B, i, j):
-    #All profiles of the whole game that Pareto-dominate the profile (i, j)
+    """All profiles of the whole game that Pareto-dominate the profile (i, j)."""
     m, n = A.shape
     u = (A[i, j], B[i, j])
     return [(k, l) for k in range(m) for l in range(n)
             if (k, l) != (i, j) and pareto_dominates((A[k, l], B[k, l]), u)]
 
 
-#full analysis of the game: best responses, Nash equilibria, Pareto-optimality
+# ----------------------------------------------------------------------------
+# 5. Full analysis with display (R5)
+# ----------------------------------------------------------------------------
 def analyse(A, B, rn, cn, verbose=True):
     """Returns (ne, pareto_optimal_ne): two lists of (i, j) profiles."""
     m, n = A.shape
@@ -160,7 +170,9 @@ def analyse(A, B, rn, cn, verbose=True):
     return ne, pareto_opt
 
 
-#game input: keyboard, JSON file, random, built-in examples
+# ----------------------------------------------------------------------------
+# 6. Game input (R1)
+# ----------------------------------------------------------------------------
 def read_int(msg, lo=1):
     while True:
         try:
@@ -230,7 +242,9 @@ def input_random():
     return A, B, *default_names(m, n)
 
 
-# built-in examples
+# ----------------------------------------------------------------------------
+# 7. Built-in games (R7). Each game is built from a matrix of payoff pairs.
+# ----------------------------------------------------------------------------
 def from_pairs(pairs, rn=None, cn=None):
     p = np.array(pairs, dtype=float)
     A, B = p[..., 0], p[..., 1]
@@ -327,7 +341,9 @@ def run_tests():
     print("\nAll tests passed.")
 
 
-#main program
+# ----------------------------------------------------------------------------
+# 8. Main program
+# ----------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Pure-strategy Nash equilibria of a 2-player game")
     parser.add_argument("--test", action="store_true", help="run the tests on the built-in games")
